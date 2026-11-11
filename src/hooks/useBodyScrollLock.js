@@ -40,3 +40,4 @@ export function useBodyScrollLock(locked = true) {
 }
 
 export default useBodyScrollLock;
+

@@ -269,3 +269,4 @@ export function countByView(tasks = [], now = new Date()) {
 
     return { inbox, today, upcoming };
 }
+
