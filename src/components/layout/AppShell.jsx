@@ -6,19 +6,33 @@ import BottomSheet from '../ui/BottomSheet';
 import DetailPanel from '../tasks/DetailPanel';
 import TaskForm from '../tasks/TaskForm';
 import TaskItem from '../tasks/TaskItem';
+import FilterPanel from '../tasks/FilterPanel';
+import SortMenu from '../tasks/SortMenu';
+import ThemeToggle from '../ui/ThemeToggle';
 import CategoryManager from '../categories/CategoryManager';
 import { useLayoutMode } from '../../hooks/useLayoutMode';
 import { useTasks } from '../../hooks/useTasks';
+import { useTaskFilters } from '../../hooks/useTaskFilters';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { countByView } from '../../utils/taskSelectors';
-import { AlertCircle, AlertTriangle, X, Tag, Moon, Sun, LogOut, Info } from 'lucide-react';
+import { AlertCircle, AlertTriangle, X, Tag, LogOut, Info } from 'lucide-react';
 
 export default function AppShell() {
     const layoutMode = useLayoutMode();
-    const { isDark, toggleTheme } = useTheme();
+    const { isDark } = useTheme();
     const { logout } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
+
+    // Filters and sort state synced with URL search params
+    const {
+        filters,
+        searchInput,
+        setSearchInput,
+        setFilter,
+        clearFilters,
+        activeCount,
+    } = useTaskFilters();
 
     const {
         tasks,
@@ -45,6 +59,7 @@ export default function AppShell() {
     // Modals / Sheets state
     const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
     const [isMenuSheetOpen, setIsMenuSheetOpen] = useState(false);
+    const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
     const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
 
     const taskFormRef = useRef(null);
@@ -98,6 +113,13 @@ export default function AppShell() {
         tasks,
         categories,
         layoutMode,
+        filters,
+        searchInput,
+        setSearchInput,
+        setFilter,
+        clearFilters,
+        activeCount,
+        onOpenFiltersSheet: () => setIsFilterSheetOpen(true),
         selectedTaskId,
         onSelectTask: handleSelectTask,
         onToggle: toggleTask,
@@ -129,6 +151,8 @@ export default function AppShell() {
                 <Sidebar
                     counts={viewCounts}
                     categories={categories}
+                    selectedCategoryId={filters.categoryId}
+                    onSelectCategory={(catId) => setFilter('categoryId', catId)}
                     isTablet={layoutMode === 'tablet'}
                     onNewTask={() => {
                         if (layoutMode === 'laptop') {
@@ -310,16 +334,14 @@ export default function AppShell() {
                         <span>Manage Categories ({categories.length})</span>
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={toggleTheme}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-colors cursor-pointer ${
-                            isDark ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-100' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
-                        }`}
-                    >
-                        {isDark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-indigo-500" />}
-                        <span>{isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
-                    </button>
+                    <div className="pt-2 pb-1">
+                        <label className={`block text-[11px] font-bold uppercase tracking-wider mb-2 ${
+                            isDark ? 'text-zinc-400' : 'text-zinc-500'
+                        }`}>
+                            Theme Appearance
+                        </label>
+                        <ThemeToggle />
+                    </div>
 
                     <button
                         type="button"
@@ -335,7 +357,41 @@ export default function AppShell() {
                 </div>
             </BottomSheet>
 
-            {/* 8. Category Manager Modal */}
+            {/* 8. Mobile Filters Bottom Sheet */}
+            <BottomSheet
+                isOpen={isFilterSheetOpen}
+                onClose={() => setIsFilterSheetOpen(false)}
+                title="Filter & Sort Tasks"
+            >
+                <div className="space-y-6 py-1">
+                    <FilterPanel
+                        filters={filters}
+                        categories={categories}
+                        onFilterChange={setFilter}
+                        onClearFilters={clearFilters}
+                        activeCount={activeCount}
+                        isMobileSheet={true}
+                    />
+                    <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
+                        <SortMenu
+                            sortKey={filters.sort}
+                            dir={filters.dir}
+                            onSortKeyChange={(k) => setFilter('sort', k)}
+                            onDirChange={(d) => setFilter('dir', d)}
+                            isMobileSheet={true}
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsFilterSheetOpen(false)}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all shadow-xs cursor-pointer"
+                    >
+                        Apply
+                    </button>
+                </div>
+            </BottomSheet>
+
+            {/* 9. Category Manager Modal */}
             <CategoryManager
                 isOpen={isCategoryManagerOpen}
                 onClose={() => setIsCategoryManagerOpen(false)}

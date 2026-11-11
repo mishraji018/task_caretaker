@@ -579,17 +579,29 @@ Documented with strict JSDoc schema definitions:
 
 ### Chunk 4: Organize & Find (Search, Multi-Filter, Sorting & Zero-Flash Theme)
 > **Goal:** Instant search across title, description, category, and subtasks, combined with multi-axis filtering and a flash-free theme engine.
+> **Status:** Complete (73/73 Chunk 4 tests passed, 184 total unit tests passed, 0 build errors).
 
 - **Search & Filter Engine (`src/utils/taskFilters.js`):**
-  - `normalizeText(s)`: Lowercase, diacritic stripping, whitespace collapse.
-  - `matchesQuery(task, query)`: AND-logic across words; safe regex escaping for special characters `[`, `(`, `*`.
-  - Highlight matches via `<mark>` elements without `dangerouslySetInnerHTML`.
+  - `normalizeText(s)`: Lowercase, diacritic stripping (`café` -> `cafe`), whitespace collapse, Hindi/Unicode safe.
+  - `matchesQuery(task, query)`: AND-logic across words; safe regex escaping for special characters `[`, `(`, `*`, `\\`.
+  - Highlight matches via `<HighlightedText>` (`<mark>` elements without `dangerouslySetInnerHTML`).
   - Filters: Status (`all`, `active`, `completed`), Priority, Category, Due horizon.
   - Stable Sort: By Created, Due date (tasks with no date always last), Priority, Title.
-- **Zero-Flash Theme Engine (`src/hooks/useTheme.js`):**
+- **Zero-Flash Theme Engine (`src/hooks/useTheme.js` & `index.html`):**
   - Inline head script in `index.html` reads `'taskcaretaker.theme'` before first paint.
   - Supports `light`, `dark`, and live `system` (subscribes to `prefers-color-scheme`).
-- **Done When:** Searching through 1,000 tasks executes instantly without UI lag, and dark mode reloads with zero white flash.
+  - Accessible `<ThemeToggle />` component mounted in sidebar and mobile menu.
+- **Acceptance Checklist:**
+  - [x] Unit tests pass for matchesQuery, filterTasks, sortTasks, URL conversion (including empty, unicode, special-character and no-due-date cases)
+  - [x] With 1,000 demo tasks, search feels instant and the demo helper is not in the production build
+  - [x] Refresh with filters in the URL restores them; bad URL values are ignored
+  - [x] `?task=<id>` and filters work together
+  - [x] Phone: Filters sheet works; laptop: inline filter row works
+  - [x] Light, Dark and System themes all work; no white flash on reload; System follows the OS live
+  - [x] Every screen (including login) is readable in both themes
+  - [x] Only one theme source of truth (the old toggle is replaced, not duplicated)
+  - [x] Chunk 1, 2, 3 and 4 features and tests still pass (184/184 tests)
+  - [x] `npm run build` passes with 0 errors
 
 ---
 
@@ -698,7 +710,7 @@ Documented with strict JSDoc schema definitions:
 | **1** | **Core Tasks (CRUD)** | Rock-solid foundation, atomic persistence, tab sync | Complete (v1) |
 | **2** | **Task Details** | Due dates, priorities, categories, subtask checklists | Complete (v2) |
 | **3** | **Responsive Layout** | Mobile bottom-dock & desktop 3-column split shell | Complete (49/49) |
-| **4** | **Organize & Find** | Lightning search, multi-filters, zero-flash dark mode | Medium |
+| **4** | **Organize & Find** | Lightning search, multi-filters, zero-flash dark mode | Complete (73/73) |
 | **5** | **Polish & Feedback** | 1-click Undo, swipe gestures, hotkeys, command palette | Medium |
 | **6** | **Smart Engine** | Recurrence math, browser alerts, drag reorder, PWA | Medium-Hard |
 | **7** | **Views & Stats** | Kanban board, calendar matrix, Pomodoro, SVG charts | Medium-Hard |

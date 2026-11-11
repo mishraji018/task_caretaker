@@ -19,6 +19,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { isOverdue, formatDue, toInputValue, fromInputValue } from '../../utils/dates';
 import { subtaskProgress } from '../../utils/subtasks';
+import HighlightedText from './HighlightedText';
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_DESC_LENGTH = 1000;
@@ -29,6 +30,7 @@ export default function TaskItem({
     task,
     categories = [],
     isSelected = false,
+    searchQuery = '',
     onSelect,
     forceExpandedSubtasks = false,
     onToggle,
@@ -462,7 +464,11 @@ export default function TaskItem({
                                                 : 'text-zinc-900'
                                         }`}
                                 >
-                                    {task.title}
+                                    {searchQuery ? (
+                                        <HighlightedText text={task.title} query={searchQuery} />
+                                    ) : (
+                                        task.title
+                                    )}
                                 </h4>
 
                                 {/* Description (Plain text only) */}
@@ -475,7 +481,11 @@ export default function TaskItem({
                                                     : 'text-zinc-600'
                                             }`}
                                     >
-                                        {task.description}
+                                        {searchQuery ? (
+                                            <HighlightedText text={task.description} query={searchQuery} />
+                                        ) : (
+                                            task.description
+                                        )}
                                     </p>
                                 )}
 
@@ -568,7 +578,11 @@ export default function TaskItem({
                                                                 : 'text-zinc-800 dark:text-zinc-200'
                                                             }`}
                                                     >
-                                                        {sub.title}
+                                                        {searchQuery ? (
+                                                            <HighlightedText text={sub.title} query={searchQuery} />
+                                                        ) : (
+                                                            sub.title
+                                                        )}
                                                     </span>
                                                 </div>
                                                 <button

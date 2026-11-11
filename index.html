@@ -5,7 +5,25 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>todo-app</title>
+  <meta name="theme-color" content="#09090b" />
+  <title>Task Caretaker</title>
+
+  <!-- Prevent white flash on page reload before React hydration -->
+  <script>
+    (function() {
+      try {
+        var mode = localStorage.getItem('taskcaretaker.theme') || localStorage.getItem('theme') || 'system';
+        var isDark = mode === 'dark' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = 'dark';
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.style.colorScheme = 'light';
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>

@@ -6,6 +6,8 @@ export default function TaskList({
     tasks,
     categories = [],
     selectedTaskId = null,
+    searchQuery = '',
+    preserveOrder = false,
     onSelectTask,
     onToggle,
     onEdit,
@@ -27,6 +29,30 @@ export default function TaskList({
                 title={emptyTitle}
                 message={emptyMessage}
             />
+        );
+    }
+
+    if (preserveOrder) {
+        return (
+            <div className="space-y-2.5">
+                {tasks.map((task) => (
+                    <TaskItem
+                        key={task.id}
+                        task={task}
+                        categories={categories}
+                        isSelected={selectedTaskId === task.id}
+                        searchQuery={searchQuery}
+                        onSelect={onSelectTask}
+                        onToggle={onToggle}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        onAddSubtask={onAddSubtask}
+                        onToggleSubtask={onToggleSubtask}
+                        onRemoveSubtask={onRemoveSubtask}
+                        onOpenCategoryManager={onOpenCategoryManager}
+                    />
+                ))}
+            </div>
         );
     }
 
@@ -60,6 +86,7 @@ export default function TaskList({
                                 task={task}
                                 categories={categories}
                                 isSelected={selectedTaskId === task.id}
+                                searchQuery={searchQuery}
                                 onSelect={onSelectTask}
                                 onToggle={onToggle}
                                 onEdit={onEdit}
@@ -89,6 +116,7 @@ export default function TaskList({
                                 task={task}
                                 categories={categories}
                                 isSelected={selectedTaskId === task.id}
+                                searchQuery={searchQuery}
                                 onSelect={onSelectTask}
                                 onToggle={onToggle}
                                 onEdit={onEdit}

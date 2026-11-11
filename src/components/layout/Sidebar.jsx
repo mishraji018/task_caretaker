@@ -16,6 +16,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { UI_STATE_KEY } from '../../constants/storageKeys';
+import ThemeToggle from '../ui/ThemeToggle';
 
 /**
  * Sidebar navigation component for Laptop and Tablet.
@@ -35,11 +36,13 @@ import { UI_STATE_KEY } from '../../constants/storageKeys';
 export default function Sidebar({
     counts = { inbox: 0, today: 0, upcoming: 0 },
     categories = [],
+    selectedCategoryId = 'all',
+    onSelectCategory,
     isTablet = false,
     onNewTask,
     onManageCategories,
 }) {
-    const { isDark, toggleTheme } = useTheme();
+    const { isDark } = useTheme();
     const { logout } = useAuth();
 
     const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -207,45 +210,50 @@ export default function Sidebar({
                     </div>
 
                     <div className="mt-1 space-y-0.5">
-                        {categories.map((cat) => (
-                            <div
-                                key={cat.id}
-                                title={isCollapsed ? cat.name : undefined}
-                                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors ${
-                                    isDark ? 'text-zinc-400 hover:bg-zinc-900' : 'text-zinc-600 hover:bg-zinc-100'
-                                } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                            >
-                                <span
-                                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                                    style={{ backgroundColor: cat.color || '#6366f1' }}
-                                />
-                                {!isCollapsed && (
-                                    <span className="truncate flex-1 text-xs font-medium">
-                                        {cat.name}
-                                    </span>
-                                )}
-                            </div>
-                        ))}
+                        {categories.map((cat) => {
+                            const isSelected = selectedCategoryId === cat.id;
+                            return (
+                                <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={() => {
+                                        if (onSelectCategory) {
+                                            onSelectCategory(isSelected ? 'all' : cat.id);
+                                        }
+                                    }}
+                                    title={isCollapsed ? cat.name : undefined}
+                                    aria-pressed={isSelected}
+                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors cursor-pointer text-left ${
+                                        isSelected
+                                            ? isDark
+                                                ? 'bg-indigo-600/20 text-indigo-400 font-semibold border border-indigo-500/30'
+                                                : 'bg-indigo-50 text-indigo-600 font-semibold border border-indigo-200/60'
+                                            : isDark
+                                            ? 'text-zinc-400 hover:bg-zinc-900'
+                                            : 'text-zinc-600 hover:bg-zinc-100'
+                                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                                >
+                                    <span
+                                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                                        style={{ backgroundColor: cat.color || '#6366f1' }}
+                                    />
+                                    {!isCollapsed && (
+                                        <span className="truncate flex-1 text-xs font-medium">
+                                            {cat.name}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </nav>
 
             {/* Bottom Actions: Theme & Logout */}
-            <div className={`p-3 border-t space-y-1 ${
+            <div className={`p-3 border-t space-y-2 ${
                 isDark ? 'border-zinc-800/60' : 'border-zinc-200'
             }`}>
-                <button
-                    type="button"
-                    onClick={toggleTheme}
-                    aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                    title={isCollapsed ? (isDark ? 'Light mode' : 'Dark mode') : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors cursor-pointer ${
-                        isDark ? 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
-                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                >
-                    {isDark ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
-                    {!isCollapsed && <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
-                </button>
+                <ThemeToggle isCollapsed={isCollapsed} />
 
                 <button
                     type="button"

@@ -10,6 +10,7 @@ export const CATEGORIES_SEEDED_KEY = 'taskcaretaker.categories.seeded';
 export const CATEGORIES_CORRUPT_KEY = 'taskcaretaker.categories.v1.corrupt';
 
 export const UI_STATE_KEY = 'taskcaretaker.ui.v1';
+export const THEME_KEY = 'taskcaretaker.theme';
 
 // Backward compatibility alias
 export const STORAGE_KEY = TASKS_KEY;
