@@ -363,31 +363,101 @@ flowchart TD
 
 ---
 
-### Chunk 1: Core Tasks (CRUD)
-> **Goal:** High-integrity foundation allowing users to create, view, edit, complete, and delete tasks. Fully durable, zero-crash storage.
+### Chunk 1: Core Tasks (CRUD) — Foundations, Service & Verification
+> **Goal:** High-integrity foundation allowing users to create, view, edit, complete, and delete tasks. Fully durable, zero-crash storage, tab synchronization, and bulletproof input validation.
 
-- **Data Model (Schema v1):**
-  ```typescript
-  Task = {
-    id: string;               // UUID v4 via crypto.randomUUID()
-    title: string;            // 1-120 chars, trimmed, required
-    description: string;      // Max 1000 chars, trimmed
-    completed: boolean;       // false initially
-    completedAt: string|null; // ISO timestamp when completed
-    createdAt: string;        // ISO timestamp
-    updatedAt: string;        // ISO timestamp
-    schemaVersion: 1;
-  }
-  ```
-- **Key Modules:**
-  - `src/services/taskService.js`: `getAll()`, `create()`, `update()`, `remove()`. Storage key: `'taskcaretaker.tasks.v1'`.
-  - `src/hooks/useTasks.js`: Reactive state, optimistic updates, rollback, multi-tab synchronization.
-  - `src/components/tasks/TaskForm.jsx`: Autofocus input, character counter, Enter to submit, Esc to clear.
-  - `src/components/tasks/TaskItem.jsx`: Accessible checkbox, inline editing, plain text rendering (no XSS).
-  - `src/components/tasks/TaskList.jsx`: Active tasks first, completed tasks below.
-  - `src/components/ui/ConfirmDialog.jsx`: Accessible custom modal replacing `window.confirm`.
-  - `src/components/ErrorBoundary.jsx`: Graceful fallback rendering.
-- **Done When:** Task add, inline edit, delete confirmation, complete toggle, and tab sync work with 0 errors on production build.
+#### Chunk 1 Core Safety Rules
+1. **Non-Destructive Development:** Never rewrite or delete working code without an explicit reason. Prefer modular new files and small surgical edits.
+2. **Preserve Existing Flows:** Keep the existing authentication flow, routes, and login screen design 100% intact.
+3. **No Direct UI Storage Access:** UI components NEVER touch `localStorage` or browser persistence primitives directly; all reads, writes, and validations must go through `src/services/taskService.js`.
+4. **Resilient JSON Parsing:** Wrap every storage operation and `JSON.parse` call in try/catch blocks. Never allow bad storage data to trigger a white-screen crash.
+5. **Strict XSS Defense:** Render all task titles and descriptions as plain text only (no `dangerouslySetInnerHTML`).
+6. **Dependency Constraint:** Zero unapproved external npm packages; adhere strictly to vanilla React 19 primitives and existing packages.
+7. **Clean Separation of Concerns:** Logic resides in pure functional modules; UI strictly renders declarative components.
+
+---
+
+#### 1.1 Data Model (Schema v1)
+Documented with strict JSDoc schema definitions:
+```typescript
+/**
+ * @typedef {Object} Task
+ * @property {string} id - Stable unique identifier (crypto.randomUUID() v4)
+ * @property {string} title - Task title (1-120 characters, trimmed, required)
+ * @property {string} description - Optional task details (0-1000 characters, trimmed)
+ * @property {boolean} completed - Task completion flag (false initially)
+ * @property {string | null} completedAt - ISO timestamp when completed, null otherwise
+ * @property {string} createdAt - ISO timestamp when created
+ * @property {string} updatedAt - ISO timestamp when last updated
+ * @property {number} schemaVersion - Schema version identifier (1)
+ */
+```
+
+---
+
+#### 1.2 Module Architecture & Implemented Files
+
+| Module File | Exported Symbols | Purpose & Functional Contract |
+|---|---|---|
+| `src/constants/storageKeys.js` | `TASKS_KEY`, `CORRUPT_KEY`, `STORAGE_KEY` | Canonical keys: `taskcaretaker.tasks.v1` and `taskcaretaker.tasks.v1.corrupt`. |
+| `src/utils/errors.js` | `ValidationError`, `NotFoundError` | Specialized error classes with user-readable diagnostic messages. |
+| `src/utils/validation.js` | `validateTitle(title)`, `validateDescription(text)` | Pure validation functions: trims input, enforces title (1-120 chars) and description (<= 1000 chars), throws `ValidationError`. |
+| `src/services/taskService.js` | `taskService`, re-exported keys & errors | Centralized persistence layer with atomic `getAll()`, `create()`, `update()`, `remove()`, and memory fallback. |
+| `src/hooks/useTasks.js` | `useTasks()` hook | Reactive state management, optimistic updates with automatic rollback on error, and multi-tab `'storage'` event sync. |
+| `src/components/ErrorBoundary.jsx` | `<ErrorBoundary>` | App-level failure catcher with friendly error card and instant 'Reload' action. |
+| `src/components/ui/ConfirmDialog.jsx` | `<ConfirmDialog>` | Accessible custom modal replacing `window.confirm`. Supports <kbd>Escape</kbd> dismissal and focuses Cancel button first. |
+| `src/components/tasks/EmptyState.jsx` | `<EmptyState>` | Zero-state graphic and text with an 'Add your first task' CTA that focuses the form title input. |
+| `src/components/tasks/TaskForm.jsx` | `<TaskForm>` | Quick-entry form with autofocus title, description textarea, character counters, Enter submit, Esc clear, and double-click prevention. |
+| `src/components/tasks/TaskItem.jsx` | `<TaskItem>` | Accessible row with checkbox, title, 2-line description clamp, inline edit (Esc cancels), and Delete button opening ConfirmDialog. |
+| `src/components/tasks/TaskList.jsx` | `<TaskList>` | Keyed task list displaying active tasks first (newest top) and completed tasks below with empty state support. |
+| `src/components/Dashboard.jsx` | `<Dashboard>` | Authenticated home view hosting TaskForm and TaskList with mobile (375px) and laptop (1440px) responsiveness. |
+| `scripts/test-chunk1.js` | Test runner suite | 21/21 automated unit and integration assertions validating storage, limits, and recovery. |
+
+---
+
+#### 1.3 Service Persistence Contract (`taskService.js`)
+- **`getAll()`:** Reads `TASKS_KEY`. If storage is empty, returns `[]`. If stored JSON is corrupt, automatically backs up the raw string to `CORRUPT_KEY`, clears the damaged key, raises the `corruptedDetected` notice flag, and returns `[]` without throwing. Automatically drops items that fail the basic task shape.
+- **`create({ title, description })`:** Validates inputs via `validateTitle` and `validateDescription`. Constructs task object with `crypto.randomUUID()` and ISO timestamps. Persists atomically and returns the new task.
+- **`update(id, patch)`:** Restricts modifications strictly to `title`, `description`, and `completed`. Validates updated fields. Always refreshes `updatedAt`. Setting `completed -> true` assigns `completedAt` to current ISO time; `completed -> false` sets it to `null`. Throws `NotFoundError` if the target `id` does not exist.
+- **`remove(id)`:** Removes matching task from storage. No-op if `id` is not found.
+- **Atomic Persistence (`persist`):** Constructs the complete modified array in memory first, serializes via `JSON.stringify`, and performs a single `localStorage.setItem` call. If storage quota is exceeded or blocked, switches gracefully to in-memory store without crashing.
+
+---
+
+#### 1.4 Hook Contract (`useTasks.js`)
+- Exposes: `{ tasks, loading, error, addTask, editTask, toggleTask, deleteTask, corruptNotice, isStorageBlocked, dismissCorruptedNotice }`.
+- **Mount:** Loads tasks on initial render with graceful error handling.
+- **Optimistic State & Rollback:** State updates immediately on the client; if `taskService` throws, state rolls back to its exact previous snapshot and displays a readable error message.
+- **Multi-Tab Sync:** Listens to `window.addEventListener('storage')` targeting `TASKS_KEY` to reload tasks when changes occur in another browser tab; unregisters cleanly on component unmount.
+
+---
+
+#### 1.5 Edge Cases Matrix & Resolution Status
+
+| # | Edge Case | Expected System Behavior | Verification Status |
+|---|---|---|:---:|
+| **1** | **10,000-character title paste** | Form & service reject with clear message (`120 characters or fewer`); zero UI freezing. | **PASS** (Unit test #8) |
+| **2** | **Whitespace-only title** | Rejected with `Title is required and cannot be empty or only spaces`; submit button disabled. | **PASS** (Unit test #7) |
+| **3** | **Rapid double-click on Add** | `isSaving` state & `isSubmittingRef` lock submission; creates exactly one task. | **PASS** (TaskForm verification) |
+| **4** | **Corrupt storage `{bad`** | Loads safely with empty list and warning banner; raw corrupt value archived to `CORRUPT_KEY`. | **PASS** (Unit tests #18-20) |
+| **5** | **Storage full / blocked** | Warning banner rendered; app transitions seamlessly to in-memory storage. | **PASS** (taskService & hook) |
+| **6** | **Deleted in another tab, then edited** | Raises friendly `NotFoundError` indicating task was deleted elsewhere; no crash. | **PASS** (Unit test #15) |
+| **7** | **Two tabs open in parallel** | Adding, editing, or deleting in tab A updates tab B immediately via `'storage'` event. | **PASS** (useTasks hook listener) |
+| **8** | **Script injection `<script>alert(1)</script>`** | Rendered strictly as inert plain text in React DOM; zero script execution. | **PASS** (Plain text JSX) |
+
+---
+
+#### 1.6 Chunk 1 Acceptance Checklist
+
+- [x] **Add, edit, complete, un-complete, and delete all work smoothly**
+- [x] **Refresh keeps all saved data intact in localStorage**
+- [x] **Corrupt storage test: app still loads, preserves corrupt snapshot in backup key**
+- [x] **Empty state shows when list is empty; button focuses title input**
+- [x] **Two tabs stay in sync automatically via storage event listener**
+- [x] **Long (10k chars), empty, whitespace, and script-like titles handled safely**
+- [x] **Looks clean and responsive at both 375px mobile and 1440px laptop widths**
+- [x] **Existing Firebase login flow and authentication routes completely unchanged**
+- [x] **`npm run build` passes with 0 errors (Vite production bundle generated)**
 
 ---
 

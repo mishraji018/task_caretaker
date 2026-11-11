@@ -1,3 +1,9 @@
+import { TASKS_KEY, CORRUPT_KEY, STORAGE_KEY } from '../constants/storageKeys.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { validateTitle, validateDescription } from '../utils/validation.js';
+
+export { TASKS_KEY, CORRUPT_KEY, STORAGE_KEY, ValidationError, NotFoundError, validateTitle, validateDescription };
+
 /**
  * @typedef {Object} Task
  * @property {string} id - Stable unique identifier (UUID v4)
@@ -9,23 +15,6 @@
  * @property {string} updatedAt - ISO timestamp when last modified
  * @property {number} schemaVersion - Schema version identifier (1)
  */
-
-export const STORAGE_KEY = 'taskcaretaker.tasks.v1';
-export const CORRUPT_KEY = 'taskcaretaker.tasks.v1.corrupt';
-
-export class ValidationError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = 'ValidationError';
-    }
-}
-
-export class NotFoundError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = 'NotFoundError';
-    }
-}
 
 // In-memory fallback if localStorage is disabled, blocked, or full
 let memoryStore = [];
@@ -174,23 +163,8 @@ export const taskService = {
      * @returns {Task}
      */
     create({ title, description = '' }) {
-        if (typeof title !== 'string') {
-            throw new ValidationError('Task title must be a valid text string.');
-        }
-
-        const trimmedTitle = title.trim();
-        if (!trimmedTitle) {
-            throw new ValidationError('Title is required and cannot be empty or only spaces.');
-        }
-
-        if (trimmedTitle.length > 120) {
-            throw new ValidationError('Title must be 120 characters or fewer.');
-        }
-
-        const trimmedDescription = typeof description === 'string' ? description.trim() : '';
-        if (trimmedDescription.length > 1000) {
-            throw new ValidationError('Description must be 1000 characters or fewer.');
-        }
+        const trimmedTitle = validateTitle(title);
+        const trimmedDescription = validateDescription(description);
 
         const now = new Date().toISOString();
         const newTask = {
@@ -236,25 +210,11 @@ export const taskService = {
         const updated = { ...current };
 
         if ('title' in patch) {
-            if (typeof patch.title !== 'string') {
-                throw new ValidationError('Title must be a text string.');
-            }
-            const trimmedTitle = patch.title.trim();
-            if (!trimmedTitle) {
-                throw new ValidationError('Title cannot be empty or whitespace only.');
-            }
-            if (trimmedTitle.length > 120) {
-                throw new ValidationError('Title must be 120 characters or fewer.');
-            }
-            updated.title = trimmedTitle;
+            updated.title = validateTitle(patch.title);
         }
 
         if ('description' in patch) {
-            const trimmedDesc = typeof patch.description === 'string' ? patch.description.trim() : '';
-            if (trimmedDesc.length > 1000) {
-                throw new ValidationError('Description must be 1000 characters or fewer.');
-            }
-            updated.description = trimmedDesc;
+            updated.description = validateDescription(patch.description);
         }
 
         if ('completed' in patch && typeof patch.completed === 'boolean') {
