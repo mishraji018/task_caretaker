@@ -15,3 +15,4 @@ export class NotFoundError extends Error {
         this.name = 'NotFoundError';
     }
 }
+

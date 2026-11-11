@@ -13,7 +13,7 @@ export default function ConfirmDialog({
     isDestructive = true,
 }) {
     const { isDark } = useTheme();
-    const confirmButtonRef = useRef(null);
+    const cancelButtonRef = useRef(null);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -26,9 +26,9 @@ export default function ConfirmDialog({
         }
 
         window.addEventListener('keydown', handleKeyDown);
-        // Autofocus confirm or cancel button
+        // Autofocus cancel button first for safety against accidental deletion
         setTimeout(() => {
-            confirmButtonRef.current?.focus();
+            cancelButtonRef.current?.focus();
         }, 50);
 
         return () => {
@@ -76,6 +76,7 @@ export default function ConfirmDialog({
 
                 <div className="mt-6 flex items-center justify-end gap-3">
                     <button
+                        ref={cancelButtonRef}
                         type="button"
                         onClick={onCancel}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isDark
@@ -86,7 +87,6 @@ export default function ConfirmDialog({
                         {cancelLabel}
                     </button>
                     <button
-                        ref={confirmButtonRef}
                         type="button"
                         onClick={onConfirm}
                         className={`px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors ${isDestructive

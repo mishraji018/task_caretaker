@@ -6,3 +6,4 @@ export const CORRUPT_KEY = 'taskcaretaker.tasks.v1.corrupt';
 
 // Backward compatibility alias
 export const STORAGE_KEY = TASKS_KEY;
+
