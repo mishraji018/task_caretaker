@@ -2,7 +2,18 @@ import TaskItem from './TaskItem';
 import EmptyState from './EmptyState';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export default function TaskList({ tasks, onToggle, onEdit, onDelete, onFocusForm }) {
+export default function TaskList({
+    tasks,
+    categories = [],
+    onToggle,
+    onEdit,
+    onDelete,
+    onAddSubtask,
+    onToggleSubtask,
+    onRemoveSubtask,
+    onOpenCategoryManager,
+    onFocusForm,
+}) {
     const { isDark } = useTheme();
 
     if (!tasks || tasks.length === 0) {
@@ -28,7 +39,7 @@ export default function TaskList({ tasks, onToggle, onEdit, onDelete, onFocusFor
             {activeTasks.length > 0 && (
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                             Tasks ({activeTasks.length})
                         </h3>
                     </div>
@@ -37,9 +48,14 @@ export default function TaskList({ tasks, onToggle, onEdit, onDelete, onFocusFor
                             <TaskItem
                                 key={task.id}
                                 task={task}
+                                categories={categories}
                                 onToggle={onToggle}
                                 onEdit={onEdit}
                                 onDelete={onDelete}
+                                onAddSubtask={onAddSubtask}
+                                onToggleSubtask={onToggleSubtask}
+                                onRemoveSubtask={onRemoveSubtask}
+                                onOpenCategoryManager={onOpenCategoryManager}
                             />
                         ))}
                     </div>
@@ -49,8 +65,8 @@ export default function TaskList({ tasks, onToggle, onEdit, onDelete, onFocusFor
             {/* Completed Tasks */}
             {completedTasks.length > 0 && (
                 <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between border-t pt-4 border-gray-200 dark:border-gray-800">
-                        <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <div className="flex items-center justify-between border-t pt-4 border-zinc-200 dark:border-zinc-800">
+                        <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
                             Completed ({completedTasks.length})
                         </h3>
                     </div>
@@ -59,9 +75,14 @@ export default function TaskList({ tasks, onToggle, onEdit, onDelete, onFocusFor
                             <TaskItem
                                 key={task.id}
                                 task={task}
+                                categories={categories}
                                 onToggle={onToggle}
                                 onEdit={onEdit}
                                 onDelete={onDelete}
+                                onAddSubtask={onAddSubtask}
+                                onToggleSubtask={onToggleSubtask}
+                                onRemoveSubtask={onRemoveSubtask}
+                                onOpenCategoryManager={onOpenCategoryManager}
                             />
                         ))}
                     </div>
@@ -70,4 +91,3 @@ export default function TaskList({ tasks, onToggle, onEdit, onDelete, onFocusFor
         </div>
     );
 }
-

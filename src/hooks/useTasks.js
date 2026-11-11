@@ -1,27 +1,39 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { taskService, STORAGE_KEY } from '../services/taskService';
+import { taskService, STORAGE_KEY } from '../services/taskService.js';
+import { categoryService } from '../services/categoryService.js';
+import { CATEGORIES_KEY } from '../constants/storageKeys.js';
+import { addSubtask, toggleSubtask, removeSubtask } from '../utils/subtasks.js';
 
 export function useTasks() {
     const [tasks, setTasks] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [corruptNotice, setCorruptNotice] = useState(false);
+    const [futureVersionNotice, setFutureVersionNotice] = useState(false);
     const [isStorageBlocked, setIsStorageBlocked] = useState(false);
 
     const isSubmittingRef = useRef(false);
 
-    const loadTasks = useCallback(() => {
+    const loadData = useCallback(() => {
         try {
             const data = taskService.getAll();
             setTasks(data);
+
+            const cats = categoryService.getAll();
+            setCategories(cats);
+
             if (taskService.hasCorruptedData()) {
                 setCorruptNotice(true);
+            }
+            if (taskService.hasFutureVersion()) {
+                setFutureVersionNotice(true);
             }
             if (!taskService.isStorageWorking()) {
                 setIsStorageBlocked(true);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load tasks.');
+            setError(err instanceof Error ? err.message : 'Failed to load task data.');
         } finally {
             setLoading(false);
         }
@@ -29,14 +41,14 @@ export function useTasks() {
 
     // Initial load
     useEffect(() => {
-        loadTasks();
-    }, [loadTasks]);
+        loadData();
+    }, [loadData]);
 
-    // Multi-tab synchronization
+    // Multi-tab synchronization for tasks and categories
     useEffect(() => {
         function handleStorageChange(event) {
-            if (event.key === STORAGE_KEY) {
-                loadTasks();
+            if (event.key === STORAGE_KEY || event.key === CATEGORIES_KEY) {
+                loadData();
             }
         }
 
@@ -44,19 +56,19 @@ export function useTasks() {
         return () => {
             window.removeEventListener('storage', handleStorageChange);
         };
-    }, [loadTasks]);
+    }, [loadData]);
 
     /**
      * Add task with optimistic update & rollback
      */
-    const addTask = useCallback(async ({ title, description }) => {
+    const addTask = useCallback(async (taskInput) => {
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
         setError(null);
 
         const previousTasks = [...tasks];
         try {
-            const created = taskService.create({ title, description });
+            const created = taskService.create(taskInput);
             setTasks((prev) => [created, ...prev]);
 
             if (!taskService.isStorageWorking()) {
@@ -165,6 +177,95 @@ export function useTasks() {
         }
     }, [tasks]);
 
+    /**
+     * Subtask management actions
+     */
+    const handleAddSubtask = useCallback(async (taskId, title) => {
+        setError(null);
+        const currentTask = tasks.find((t) => t.id === taskId);
+        if (!currentTask) return;
+
+        try {
+            const updatedTask = addSubtask(currentTask, title);
+            await editTask(taskId, { subtasks: updatedTask.subtasks });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to add subtask.';
+            setError(message);
+            throw err;
+        }
+    }, [tasks, editTask]);
+
+    const handleToggleSubtask = useCallback(async (taskId, subtaskId) => {
+        setError(null);
+        const currentTask = tasks.find((t) => t.id === taskId);
+        if (!currentTask) return;
+
+        try {
+            const updatedTask = toggleSubtask(currentTask, subtaskId);
+            await editTask(taskId, { subtasks: updatedTask.subtasks });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to toggle subtask.';
+            setError(message);
+        }
+    }, [tasks, editTask]);
+
+    const handleRemoveSubtask = useCallback(async (taskId, subtaskId) => {
+        setError(null);
+        const currentTask = tasks.find((t) => t.id === taskId);
+        if (!currentTask) return;
+
+        try {
+            const updatedTask = removeSubtask(currentTask, subtaskId);
+            await editTask(taskId, { subtasks: updatedTask.subtasks });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to remove subtask.';
+            setError(message);
+        }
+    }, [tasks, editTask]);
+
+    /**
+     * Category actions
+     */
+    const addCategory = useCallback((name, color) => {
+        setError(null);
+        try {
+            const newCat = categoryService.create(name, color);
+            setCategories(categoryService.getAll());
+            return newCat;
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to create category.';
+            setError(msg);
+            throw err;
+        }
+    }, []);
+
+    const renameCategory = useCallback((id, name) => {
+        setError(null);
+        try {
+            const updatedCat = categoryService.rename(id, name);
+            setCategories(categoryService.getAll());
+            return updatedCat;
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to rename category.';
+            setError(msg);
+            throw err;
+        }
+    }, []);
+
+    const deleteCategory = useCallback((id) => {
+        setError(null);
+        try {
+            categoryService.remove(id);
+            setCategories(categoryService.getAll());
+            // Refresh tasks since category was nullified on matching tasks
+            setTasks(taskService.getAll());
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to delete category.';
+            setError(msg);
+            throw err;
+        }
+    }, []);
+
     const dismissCorruptNotice = useCallback(() => {
         taskService.dismissCorruptedNotice();
         setCorruptNotice(false);
@@ -176,18 +277,26 @@ export function useTasks() {
 
     return {
         tasks,
+        categories,
         loading,
         error,
         isStorageBlocked,
         corruptNotice,
+        futureVersionNotice,
         dismissCorruptNotice,
         clearError,
         addTask,
         editTask,
         toggleTask,
         deleteTask,
+        addSubtask: handleAddSubtask,
+        toggleSubtask: handleToggleSubtask,
+        removeSubtask: handleRemoveSubtask,
+        addCategory,
+        renameCategory,
+        deleteCategory,
+        reloadCategories: () => setCategories(categoryService.getAll()),
     };
 }
 
 export default useTasks;
-

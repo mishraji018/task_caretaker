@@ -461,36 +461,89 @@ Documented with strict JSDoc schema definitions:
 
 ---
 
-### Chunk 2: Task Details (Due Dates, Priority, Categories, Subtasks)
-> **Goal:** Turn simple todos into actionable projects with deadlines, visual priorities, project tags, and structured subtasks. Auto-migrates v1 data.
+### Chunk 2: Task Details (Due Dates, Priority, Categories, Subtasks & Schema Migration) — Completed
+> **Goal:** Turn simple todos into actionable projects with deadlines, visual priorities, project tags, and structured subtasks. Auto-migrates v1 data safely with automatic backup.
 
-- **Data Model (Schema v2):**
-  ```typescript
-  Task = {
-    ...TaskV1,
-    dueAt: string | null;            // ISO in UTC, rendered in local time
-    hasDueTime: boolean;             // false = date only (end of local day)
-    priority: 'high'|'medium'|'low'; // default 'medium'
-    categoryId: string | null;       // Reference to Category.id
-    subtasks: Array<{ id: string; title: string; done: boolean }>;
-    schemaVersion: 2;
-  }
-  Category = {
-    id: string;
-    name: string;   // 1-30 chars, case-insensitive unique
-    color: string;  // Hex code
-    createdAt: string;
-  }
-  ```
-- **Migration Engine (`src/services/migrations.js`):**
-  - Runs idempotently on `getAll()`.
-  - Backs up old storage to `'taskcaretaker.tasks.v1.backup'`.
-  - Upgrades missing attributes to safe defaults (`priority: 'medium'`, `subtasks: []`, `categoryId: null`).
-- **Key Modules:**
-  - `src/utils/dates.js`: `isOverdue(task, now)`, `formatDue(task, now)`, `toLocalInputValue()`, `fromLocalInputValue()`.
-  - `src/services/categoryService.js`: Default seeds: `Work`, `Study`, `Personal`. Deleting a category moves its tasks to `Uncategorised` without deleting them.
-  - `src/utils/subtasks.js`: Add, toggle, delete, and calculate progress (`2/5 completed`).
-- **Done When:** Tasks support date/time picking, overdue color highlighting, category badge assignment, and subtask checklists with persistence.
+#### 2.1 Data Model (Schema v2)
+```typescript
+/**
+ * @typedef {Object} Subtask
+ * @property {string} id - Stable subtask identifier
+ * @property {string} title - Subtask title (1-120 characters)
+ * @property {boolean} done - Completion flag
+ */
+
+/**
+ * @typedef {Object} Task
+ * @property {string} id - Stable unique identifier (UUID v4)
+ * @property {string} title - Task title (1-120 characters)
+ * @property {string} description - Optional task details (up to 1000 characters)
+ * @property {boolean} completed - Completion status
+ * @property {string | null} completedAt - ISO timestamp when completed, null otherwise
+ * @property {string} createdAt - ISO timestamp when created
+ * @property {string} updatedAt - ISO timestamp when last modified
+ * @property {string | null} dueAt - ISO string in UTC or null
+ * @property {boolean} hasDueTime - false = date only (end of local day), true = specific time
+ * @property {'high' | 'medium' | 'low'} priority - Task priority (default 'medium')
+ * @property {string | null} categoryId - Reference to Category id or null
+ * @property {Subtask[]} subtasks - Subtask items (max 30)
+ * @property {number} schemaVersion - Schema version identifier (2)
+ */
+
+/**
+ * @typedef {Object} Category
+ * @property {string} id - Unique identifier (UUID v4)
+ * @property {string} name - Category name (1-30 characters, case-insensitive unique)
+ * @property {string} color - Hex color code (e.g. #8B5CF6)
+ * @property {string} createdAt - ISO timestamp
+ */
+```
+
+---
+
+#### 2.2 Implemented Modules & Architecture
+
+| Module File | Exported Symbols | Purpose & Functional Contract |
+|---|---|---|
+| `src/services/migrations.js` | `migrateTasks(rawTasks)`, `hasFutureVersionDetected()` | Idempotent Schema v1 $\to$ v2 migration, backups raw storage to `taskcaretaker.tasks.v1.backup` on first migration write, safe defaults for corrupt fields. |
+| `src/utils/dates.js` | `isOverdue`, `formatDue`, `toInputValue`, `fromInputValue`, `formatTime` | Pure functions converting between ISO and local date/time inputs without timezone day-shifting; formats 'Today 5:00 PM', 'Tomorrow', 'Overdue by X days'. |
+| `src/services/categoryService.js` | `categoryService` | Storage under `taskcaretaker.categories.v1`. Seeds Work, Study, Personal on first run with `taskcaretaker.categories.seeded` flag; case-insensitive uniqueness; deletes category without deleting tasks (nullifies task categoryId). |
+| `src/utils/subtasks.js` | `addSubtask`, `toggleSubtask`, `removeSubtask`, `subtaskProgress` | Pure, immutable helper functions. Enforces max 30 subtasks and 1-120 character title. |
+| `src/components/categories/CategoryManager.jsx` | `<CategoryManager>` | Modal for managing categories: add new category with color presets, inline rename, delete prompt displaying count of affected tasks using `ConfirmDialog`. |
+| `src/components/tasks/TaskForm.jsx` | `<TaskForm>` | Enhanced creation form with date picker, conditional time picker, priority selector (High/Medium/Low with color dot + label), category selector with "+ New category..." trigger. |
+| `src/components/tasks/TaskItem.jsx` | `<TaskItem>` | Task display with priority dot + label, category tag, formatted due badge (red when overdue), subtask progress badge, expandable subtask checklist, and inline detail editor. |
+| `src/components/Dashboard.jsx` | `<Dashboard>` | Authenticated page orchestrating TaskForm, TaskList, and CategoryManager modal. |
+| `scripts/test-chunk2.js` | Automated test suite | 41/41 unit assertions verifying migration idempotence, date logic, subtasks immutability, and category deletion. |
+
+---
+
+#### 2.3 Edge Cases Matrix & Resolution Status
+
+| # | Edge Case | Expected System Behavior | Verification Status |
+|---|---|---|:---:|
+| **1** | **Date-only task timezone shift** | Preserves local calendar day without off-by-one-day bug; overdue only after 23:59:59.999 local. | **PASS** (Unit test Suite 2) |
+| **2** | **Clearing date input** | Sets `dueAt: null` and `hasDueTime: false` cleanly (no 'Invalid Date' strings). | **PASS** (Unit test #25) |
+| **3** | **Due date in past** | Allowed; displays formatted overdue label with red text/pulse. | **PASS** (Unit test #23) |
+| **4** | **Old v1 storage upgrade** | Upgrades automatically to v2 with safe defaults; backs up raw v1 data to `TASKS_BACKUP_KEY`. | **PASS** (Unit test #8) |
+| **5** | **Double reload idempotence** | No duplicate migration writes; no duplicate default categories. | **PASS** (Unit tests #9, #32) |
+| **6** | **Category deletion** | Nullifies `categoryId` on matching tasks; tasks remain intact as 'Uncategorised'. | **PASS** (Unit tests #35-36) |
+| **7** | **Duplicate/empty category names** | Rejected with `ValidationError`; input retained for correction. | **PASS** (Unit test #34) |
+| **8** | **30 subtasks with long titles** | Clamped at max 30; titles trimmed and wrapped; layout never breaks. | **PASS** (subtasks.js + TaskItem) |
+| **9** | **Corrupt categories storage** | Preserves damaged raw JSON in `.corrupt` key; falls back safely to default categories. | **PASS** (categoryService.js) |
+
+---
+
+#### 2.4 Chunk 2 Acceptance Checklist
+
+- [x] **Old v1 tasks still appear after the upgrade with default priority and no category**
+- [x] **Backup key 'taskcaretaker.tasks.v1.backup' exists and the migration did not run twice**
+- [x] **Due date, time, priority, category and subtasks can be set, edited, cleared, and survive a refresh**
+- [x] **Overdue tasks show red due text**
+- [x] **Deleting a category moves its tasks to Uncategorised and deletes nothing**
+- [x] **Date-only task stays on the same day without off-by-one bug**
+- [x] **Looks fine at 375px and 1440px with no horizontal scroll**
+- [x] **Chunk 1 features (add, edit, delete, complete) still work with zero regression**
+- [x] **`npm run build` passes with 0 errors (41/41 Chunk 2 unit tests + 21/21 Chunk 1 tests passed)**
 
 ---
 
@@ -631,7 +684,7 @@ Documented with strict JSDoc schema definitions:
 | Chunk | Phase Title | Primary Value Delivered | Estimated Complexity |
 |:---:|---|---|:---:|
 | **1** | **Core Tasks (CRUD)** | Rock-solid foundation, atomic persistence, tab sync | Complete (v1) |
-| **2** | **Task Details** | Due dates, priorities, categories, subtask checklists | Medium |
+| **2** | **Task Details** | Due dates, priorities, categories, subtask checklists | Complete (v2) |
 | **3** | **Responsive Layout** | Mobile bottom-nav & desktop 3-column split shell | Medium |
 | **4** | **Organize & Find** | Lightning search, multi-filters, zero-flash dark mode | Medium |
 | **5** | **Polish & Feedback** | 1-click Undo, swipe gestures, hotkeys, command palette | Medium |

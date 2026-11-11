@@ -1,14 +1,19 @@
 import { useState, useRef, useImperativeHandle, forwardRef } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Calendar, Clock, Flag, Tag } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { fromInputValue } from '../../utils/dates';
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_DESC_LENGTH = 1000;
 
-const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
+const TaskForm = forwardRef(function TaskForm({ onAddTask, categories = [], onOpenCategoryManager }, ref) {
     const { isDark } = useTheme();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [dueDate, setDueDate] = useState('');
+    const [dueTime, setDueTime] = useState('');
+    const [priority, setPriority] = useState('medium');
+    const [categoryId, setCategoryId] = useState('');
     const [titleError, setTitleError] = useState('');
     const [descError, setDescError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -44,13 +49,40 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
         }
     }
 
+    function handleDateChange(e) {
+        const val = e.target.value;
+        setDueDate(val);
+        if (!val) {
+            setDueTime('');
+        }
+    }
+
+    function handleCategoryChange(e) {
+        const val = e.target.value;
+        if (val === '__new_category__') {
+            if (onOpenCategoryManager) {
+                onOpenCategoryManager();
+            }
+            return;
+        }
+        setCategoryId(val);
+    }
+
+    function clearForm() {
+        setTitle('');
+        setDescription('');
+        setDueDate('');
+        setDueTime('');
+        setPriority('medium');
+        setCategoryId('');
+        setTitleError('');
+        setDescError('');
+    }
+
     function handleKeyDown(e) {
         if (e.key === 'Escape') {
             e.preventDefault();
-            setTitle('');
-            setDescription('');
-            setTitleError('');
-            setDescError('');
+            clearForm();
         } else if (e.key === 'Enter' && !e.shiftKey && e.target === titleInputRef.current) {
             e.preventDefault();
             handleSubmit(e);
@@ -82,13 +114,22 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
             return;
         }
 
+        const { dueAt, hasDueTime } = fromInputValue(dueDate, dueTime);
+
         try {
             setIsSaving(true);
             setTitleError('');
             setDescError('');
-            await onAddTask({ title: trimmedTitle, description: trimmedDesc });
-            setTitle('');
-            setDescription('');
+            await onAddTask({
+                title: trimmedTitle,
+                description: trimmedDesc,
+                dueAt,
+                hasDueTime,
+                priority,
+                categoryId: categoryId || null,
+                subtasks: [],
+            });
+            clearForm();
             titleInputRef.current?.focus();
         } catch (err) {
             setTitleError(err instanceof Error ? err.message : 'Failed to save task.');
@@ -104,14 +145,15 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
         <form
             onSubmit={handleSubmit}
             onKeyDown={handleKeyDown}
-            className={`rounded-2xl border p-5 shadow-sm transition-colors mb-6 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            className={`rounded-2xl border p-5 shadow-sm transition-colors mb-6 ${isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200'
                 }`}
         >
             <div className="space-y-4">
+                {/* Title */}
                 <div>
                     <label
                         htmlFor="task-title-input"
-                        className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'
+                        className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'
                             }`}
                     >
                         Task Title *
@@ -128,8 +170,8 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
                         className={`w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none ${titleError
                                 ? 'border-red-500 focus:ring-2 focus:ring-red-500/20'
                                 : isDark
-                                    ? 'border-gray-700 bg-gray-900/60 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-                                    : 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                                    ? 'border-zinc-700 bg-zinc-800/60 text-white placeholder-zinc-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                                    : 'border-zinc-300 bg-zinc-50 text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
                             }`}
                     />
                     {titleError && (
@@ -137,10 +179,11 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
                     )}
                 </div>
 
+                {/* Description */}
                 <div>
                     <label
                         htmlFor="task-description-input"
-                        className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'
+                        className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'
                             }`}
                     >
                         Description (Optional)
@@ -155,8 +198,8 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
                         className={`w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none resize-none ${descError
                                 ? 'border-red-500 focus:ring-2 focus:ring-red-500/20'
                                 : isDark
-                                    ? 'border-gray-700 bg-gray-900/60 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-                                    : 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                                    ? 'border-zinc-700 bg-zinc-800/60 text-white placeholder-zinc-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                                    : 'border-zinc-300 bg-zinc-50 text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
                             }`}
                     />
                     {descError && (
@@ -164,15 +207,148 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
                     )}
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
-                    <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                {/* Task Details Controls Grid: Due Date, Time, Priority, Category */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                    {/* Due Date */}
+                    <div>
+                        <label
+                            htmlFor="task-due-date"
+                            className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'
+                                }`}
+                        >
+                            <Calendar className="w-3.5 h-3.5" /> Due Date
+                        </label>
+                        <input
+                            id="task-due-date"
+                            type="date"
+                            value={dueDate}
+                            onChange={handleDateChange}
+                            disabled={isSaving}
+                            className={`w-full px-3 py-2 rounded-xl border text-xs outline-none transition-all ${isDark
+                                    ? 'border-zinc-700 bg-zinc-800/60 text-white focus:border-indigo-500'
+                                    : 'border-zinc-300 bg-zinc-50 text-zinc-900 focus:border-indigo-500'
+                                }`}
+                        />
+                    </div>
+
+                    {/* Due Time (Optional, only enabled if date selected) */}
+                    <div>
+                        <label
+                            htmlFor="task-due-time"
+                            className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'
+                                }`}
+                        >
+                            <Clock className="w-3.5 h-3.5" /> Time (Optional)
+                        </label>
+                        <input
+                            id="task-due-time"
+                            type="time"
+                            value={dueTime}
+                            onChange={(e) => setDueTime(e.target.value)}
+                            disabled={isSaving || !dueDate}
+                            className={`w-full px-3 py-2 rounded-xl border text-xs outline-none transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isDark
+                                    ? 'border-zinc-700 bg-zinc-800/60 text-white focus:border-indigo-500'
+                                    : 'border-zinc-300 bg-zinc-50 text-zinc-900 focus:border-indigo-500'
+                                }`}
+                        />
+                    </div>
+
+                    {/* Priority Selector */}
+                    <div>
+                        <span
+                            className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'
+                                }`}
+                        >
+                            <Flag className="w-3.5 h-3.5" /> Priority
+                        </span>
+                        <div className="flex items-center gap-1">
+                            {/* High */}
+                            <button
+                                type="button"
+                                onClick={() => setPriority('high')}
+                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${priority === 'high'
+                                        ? 'bg-rose-500/15 border-rose-500 text-rose-500 dark:text-rose-400 shadow-xs'
+                                        : isDark
+                                            ? 'border-zinc-700 bg-zinc-800/40 text-zinc-400 hover:border-zinc-600'
+                                            : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300'
+                                    }`}
+                            >
+                                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                                <span>High</span>
+                            </button>
+
+                            {/* Medium */}
+                            <button
+                                type="button"
+                                onClick={() => setPriority('medium')}
+                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${priority === 'medium'
+                                        ? 'bg-amber-500/15 border-amber-500 text-amber-600 dark:text-amber-400 shadow-xs'
+                                        : isDark
+                                            ? 'border-zinc-700 bg-zinc-800/40 text-zinc-400 hover:border-zinc-600'
+                                            : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300'
+                                    }`}
+                            >
+                                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                <span>Medium</span>
+                            </button>
+
+                            {/* Low */}
+                            <button
+                                type="button"
+                                onClick={() => setPriority('low')}
+                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${priority === 'low'
+                                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                                        : isDark
+                                            ? 'border-zinc-700 bg-zinc-800/40 text-zinc-400 hover:border-zinc-600'
+                                            : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300'
+                                    }`}
+                            >
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                <span>Low</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Category Selector */}
+                    <div>
+                        <label
+                            htmlFor="task-category-select"
+                            className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'
+                                }`}
+                        >
+                            <Tag className="w-3.5 h-3.5" /> Category
+                        </label>
+                        <select
+                            id="task-category-select"
+                            value={categoryId}
+                            onChange={handleCategoryChange}
+                            disabled={isSaving}
+                            className={`w-full px-3 py-2 rounded-xl border text-xs outline-none transition-all cursor-pointer ${isDark
+                                    ? 'border-zinc-700 bg-zinc-800/80 text-white focus:border-indigo-500'
+                                    : 'border-zinc-300 bg-zinc-50 text-zinc-900 focus:border-indigo-500'
+                                }`}
+                        >
+                            <option value="">No Category</option>
+                            {categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                </option>
+                            ))}
+                            <option value="__new_category__">+ New category...</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Footer Submit Row */}
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-zinc-800/80">
+                    <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
                         {title.length}/{MAX_TITLE_LENGTH} chars
                     </span>
 
                     <button
                         type="submit"
                         disabled={isAddDisabled}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all shadow-sm"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all shadow-sm cursor-pointer"
                     >
                         {isSaving ? (
                             <>
@@ -193,4 +369,3 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask }, ref) {
 });
 
 export default TaskForm;
-

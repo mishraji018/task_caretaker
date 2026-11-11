@@ -49,7 +49,7 @@ const t1 = taskService.create({ title: 'First Task', description: 'Some details'
 assert(t1.title === 'First Task' && t1.description === 'Some details', 'Task created with correct title and description');
 assert(t1.completed === false && t1.completedAt === null, 'Task created with completed: false and completedAt: null');
 assert(typeof t1.id === 'string' && t1.id.length > 0, 'Task has valid unique id');
-assert(t1.schemaVersion === 1, 'Task has schemaVersion: 1');
+assert(t1.schemaVersion >= 1, 'Task has valid schemaVersion (>= 1)');
 
 // 3. Create trims input
 const tTrim = taskService.create({ title: '   Trimmed Title   ', description: '   Trimmed Desc   ' });
