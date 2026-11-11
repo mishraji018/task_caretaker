@@ -6,7 +6,14 @@ import { fromInputValue } from '../../utils/dates';
 const MAX_TITLE_LENGTH = 120;
 const MAX_DESC_LENGTH = 1000;
 
-const TaskForm = forwardRef(function TaskForm({ onAddTask, categories = [], onOpenCategoryManager }, ref) {
+const TaskForm = forwardRef(function TaskForm({
+    onAddTask,
+    categories = [],
+    onOpenCategoryManager,
+    onSuccess,
+    onCancel,
+    currentView = '',
+}, ref) {
     const { isDark } = useTheme();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -16,6 +23,7 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask, categories = [], onOp
     const [categoryId, setCategoryId] = useState('');
     const [titleError, setTitleError] = useState('');
     const [descError, setDescError] = useState('');
+    const [noticeMessage, setNoticeMessage] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     const titleInputRef = useRef(null);
@@ -130,6 +138,13 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask, categories = [], onOp
                 subtasks: [],
             });
             clearForm();
+            if (currentView === 'today' && !dueAt) {
+                setNoticeMessage('Added to Inbox');
+                setTimeout(() => setNoticeMessage(''), 3500);
+            }
+            if (onSuccess) {
+                onSuccess({ dueAt });
+            }
             titleInputRef.current?.focus();
         } catch (err) {
             setTitleError(err instanceof Error ? err.message : 'Failed to save task.');
@@ -339,17 +354,37 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask, categories = [], onOp
                     </div>
                 </div>
 
+                {/* Notice message (e.g. Added to Inbox) */}
+                {noticeMessage && (
+                    <div className="p-2.5 rounded-xl text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 animate-in fade-in">
+                        ✓ {noticeMessage}
+                    </div>
+                )}
+
                 {/* Footer Submit Row */}
                 <div className="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-zinc-800/80">
                     <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
                         {title.length}/{MAX_TITLE_LENGTH} chars
                     </span>
 
-                    <button
-                        type="submit"
-                        disabled={isAddDisabled}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all shadow-sm cursor-pointer"
-                    >
+                    <div className="flex items-center gap-2">
+                        {onCancel && (
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                disabled={isSaving}
+                                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                                    isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                                }`}
+                            >
+                                Cancel
+                            </button>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={isAddDisabled}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all shadow-sm cursor-pointer"
+                        >
                         {isSaving ? (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -362,6 +397,7 @@ const TaskForm = forwardRef(function TaskForm({ onAddTask, categories = [], onOp
                             </>
                         )}
                     </button>
+                    </div>
                 </div>
             </div>
         </form>

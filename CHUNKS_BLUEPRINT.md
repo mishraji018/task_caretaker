@@ -549,19 +549,31 @@ Documented with strict JSDoc schema definitions:
 
 ### Chunk 3: Responsive Dual-Layout (Mobile Bottom-Nav, Desktop Sidebar & Bottom-Center Dock)
 > **Goal:** Tailored ergonomics. Ultra-smooth mobile navigation + expansive desktop 3-column layout + unified bottom-center floating task creation dock.
+> **Status:** Complete (49/49 Chunk 3 tests passed, 111 total tests passed, 0 build errors).
 
 - **Breakpoints & Layout:**
-  - **Mobile (< 768px, 390px handset):** Docked bottom task entry bar immediately above 4-tab BottomNav (`Today`, `All Tasks`, `Upcoming`, `Settings`) + 100dvh full-detail sheet.
-  - **Tablet (768px - 1023px):** Collapsed icon-rail sidebar with bottom dock.
-  - **Desktop (>= 1024px):** Sticky left sidebar (with user space, counters, categories, and Focus Timer widget), centered max-w-3xl task feed, and fixed bottom-center floating dock (`max-w-xl`, glassmorphic backdrop-blur) for rapid task addition.
-- **Key Modules:**
-  - `src/components/layout/AppShell.jsx`: Responsive layout container.
-  - `src/components/layout/Sidebar.jsx` & `src/components/layout/BottomNav.jsx`.
-  - `src/components/layout/BottomDock.jsx`: Unified floating bottom-center task creator with quick `#category` and priority selector.
-  - `src/components/layout/DetailPanel.jsx`: Full inspection of selected task synced via URL `?task=<id>`.
-  - `src/components/ui/BottomSheet.jsx`: Accessible modal sheet with focus trap and body-scroll lock.
-  - `src/utils/taskSelectors.js`: `selectInbox()`, `selectToday()`, `selectUpcoming()` (with 23:59 vs 00:00 midnight accuracy).
-- **Done When:** Resizing between 320px and 1920px produces zero horizontal overflow, floating bottom dock allows 1-click task creation on both desktop and mobile, and URL-driven task selection survives page reloads.
+  - **Mobile (< 768px, 390px handset):** Bottom dock navigation with 5 slots (Today, Upcoming, center raised Add, Inbox, Menu) + 100dvh full-detail sheet + visualViewport keyboard adjustment.
+  - **Tablet (768px - 1023px):** Collapsed icon-rail sidebar + bottom-sheet task details and creation.
+  - **Desktop (>= 1024px):** 3-column layout: Sticky left sidebar (remembered in `taskcaretaker.ui.v1`), centered task list feed, and right-side `DetailPanel` syncing selected task via URL `?task=<id>`.
+- **Delivered Modules:**
+  - `src/utils/taskSelectors.js`: Pure selectors (`selectInbox`, `selectToday`, `selectUpcoming`, `selectCompleted`, `countByView`) with exact local midnight boundaries (23:59 vs 00:00).
+  - `src/hooks/useMediaQuery.js`, `useLayoutMode.js`, `useBodyScrollLock.js`.
+  - `src/components/layout/AppShell.jsx`: 100dvh responsive shell container (max 1400px).
+  - `src/components/layout/Sidebar.jsx` & `src/components/layout/BottomDock.jsx`.
+  - `src/components/ui/BottomSheet.jsx`: Accessible modal sheet with focus trap, body scroll lock, and browser back button integration.
+  - `src/components/tasks/DetailPanel.jsx`: Selected task inspector reusing `TaskItem` without duplication.
+  - `src/pages/InboxPage.jsx`, `TodayPage.jsx`, `UpcomingPage.jsx`.
+- **Acceptance Checklist:**
+  - [x] Phone layout: bottom dock with center Add, sheet form works with keyboard open
+  - [x] Laptop layout: sidebar + centered list + detail panel work
+  - [x] Tablet layout: collapsed sidebar and bottom-sheet details work
+  - [x] Inbox, Today and Upcoming show the right tasks; boundary tests (23:59 vs 00:00) pass
+  - [x] Selected task survives a refresh via `?task=<id>`
+  - [x] No horizontal scroll at 320, 375, 768, 1024, 1440, 1920
+  - [x] No duplicated list, item or form code between mobile and laptop
+  - [x] Chunk 1, Chunk 2 and Chunk 3 features and tests pass (21/21, 41/41, 49/49)
+  - [x] Login flow unchanged
+  - [x] `npm run build` passes with 0 errors
 
 ---
 
@@ -685,7 +697,7 @@ Documented with strict JSDoc schema definitions:
 |:---:|---|---|:---:|
 | **1** | **Core Tasks (CRUD)** | Rock-solid foundation, atomic persistence, tab sync | Complete (v1) |
 | **2** | **Task Details** | Due dates, priorities, categories, subtask checklists | Complete (v2) |
-| **3** | **Responsive Layout** | Mobile bottom-nav & desktop 3-column split shell | Medium |
+| **3** | **Responsive Layout** | Mobile bottom-dock & desktop 3-column split shell | Complete (49/49) |
 | **4** | **Organize & Find** | Lightning search, multi-filters, zero-flash dark mode | Medium |
 | **5** | **Polish & Feedback** | 1-click Undo, swipe gestures, hotkeys, command palette | Medium |
 | **6** | **Smart Engine** | Recurrence math, browser alerts, drag reorder, PWA | Medium-Hard |

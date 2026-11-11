@@ -28,6 +28,9 @@ const MAX_SUBTASKS = 30;
 export default function TaskItem({
     task,
     categories = [],
+    isSelected = false,
+    onSelect,
+    forceExpandedSubtasks = false,
     onToggle,
     onEdit,
     onDelete,
@@ -207,10 +210,19 @@ export default function TaskItem({
     };
     const currentPriority = priorityColors[task.priority] || priorityColors.medium;
 
+    const showSubtasks = forceExpandedSubtasks || isSubtasksExpanded;
+
     return (
         <>
             <div
-                className={`group rounded-2xl border p-4 transition-all duration-200 ${task.completed
+                onClick={() => {
+                    if (onSelect && !isEditing) {
+                        onSelect(task);
+                    }
+                }}
+                className={`group rounded-2xl border p-4 transition-all duration-200 cursor-pointer ${
+                    isSelected ? 'ring-2 ring-indigo-500 border-indigo-500 shadow-md' : ''
+                } ${task.completed
                         ? isDark
                             ? 'bg-zinc-900/40 border-zinc-800 text-zinc-500'
                             : 'bg-zinc-100/60 border-zinc-200 text-zinc-400'
@@ -526,7 +538,7 @@ export default function TaskItem({
                         </div>
 
                         {/* Expandable Subtask Checklist */}
-                        {isSubtasksExpanded && (
+                        {showSubtasks && (
                             <div className="mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-800/80 space-y-2.5 animate-in fade-in duration-150">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">

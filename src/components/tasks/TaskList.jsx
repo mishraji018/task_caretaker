@@ -5,6 +5,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 export default function TaskList({
     tasks,
     categories = [],
+    selectedTaskId = null,
+    onSelectTask,
     onToggle,
     onEdit,
     onDelete,
@@ -13,11 +15,19 @@ export default function TaskList({
     onRemoveSubtask,
     onOpenCategoryManager,
     onFocusForm,
+    emptyTitle,
+    emptyMessage,
 }) {
     const { isDark } = useTheme();
 
     if (!tasks || tasks.length === 0) {
-        return <EmptyState onFocusForm={onFocusForm} />;
+        return (
+            <EmptyState
+                onFocusForm={onFocusForm}
+                title={emptyTitle}
+                message={emptyMessage}
+            />
+        );
     }
 
     // Active tasks first (newest first), completed tasks below (newest completed first)
@@ -49,6 +59,8 @@ export default function TaskList({
                                 key={task.id}
                                 task={task}
                                 categories={categories}
+                                isSelected={selectedTaskId === task.id}
+                                onSelect={onSelectTask}
                                 onToggle={onToggle}
                                 onEdit={onEdit}
                                 onDelete={onDelete}
@@ -76,6 +88,8 @@ export default function TaskList({
                                 key={task.id}
                                 task={task}
                                 categories={categories}
+                                isSelected={selectedTaskId === task.id}
+                                onSelect={onSelectTask}
                                 onToggle={onToggle}
                                 onEdit={onEdit}
                                 onDelete={onDelete}

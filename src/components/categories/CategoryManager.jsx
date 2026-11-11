@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Plus, Trash2, Edit2, Check, AlertCircle, Tag } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -45,12 +45,12 @@ export default function CategoryManager({
         }
     }, [isOpen]);
 
-    function handleModalClose() {
+    const handleModalClose = useCallback(() => {
         setNewName('');
         setError('');
         setEditingId(null);
         onClose();
-    }
+    }, [onClose]);
 
     useEffect(() => {
         function handleKeyDown(e) {
@@ -61,7 +61,7 @@ export default function CategoryManager({
         }
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, categoryToDelete]);
+    }, [isOpen, categoryToDelete, handleModalClose]);
 
     if (!isOpen) return null;
 
