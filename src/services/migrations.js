@@ -158,3 +158,4 @@ function performBackupIfMissing() {
 export function hasFutureVersionDetected() {
     return futureVersionDetected;
 }
+
