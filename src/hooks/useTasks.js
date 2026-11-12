@@ -58,6 +58,14 @@ export function useTasks() {
         };
     }, [loadData]);
 
+    // In-app task updates listener (e.g. from Toast Undo across navigation)
+    useEffect(() => {
+        const unsubscribe = taskService.subscribe(() => {
+            loadData();
+        });
+        return unsubscribe;
+    }, [loadData]);
+
     /**
      * Add task with optimistic update & rollback
      */
@@ -271,6 +279,14 @@ export function useTasks() {
         setCorruptNotice(false);
     }, []);
 
+    const restoreTask = useCallback((task) => {
+        try {
+            return taskService.restore(task);
+        } catch {
+            return null;
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -289,6 +305,7 @@ export function useTasks() {
         editTask,
         toggleTask,
         deleteTask,
+        restoreTask,
         addSubtask: handleAddSubtask,
         toggleSubtask: handleToggleSubtask,
         removeSubtask: handleRemoveSubtask,

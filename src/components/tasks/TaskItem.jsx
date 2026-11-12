@@ -16,7 +16,7 @@ import {
     ListTodo,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import ConfirmDialog from '../ui/ConfirmDialog';
+import { useSwipe } from '../../hooks/useSwipe';
 import { isOverdue, formatDue, toInputValue, fromInputValue } from '../../utils/dates';
 import { subtaskProgress } from '../../utils/subtasks';
 import HighlightedText from './HighlightedText';
@@ -33,6 +33,9 @@ export default function TaskItem({
     searchQuery = '',
     onSelect,
     forceExpandedSubtasks = false,
+    isRovingActive = false,
+    onFocusNext,
+    onFocusPrev,
     onToggle,
     onEdit,
     onDelete,
@@ -59,10 +62,15 @@ export default function TaskItem({
     const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
     const [subtaskError, setSubtaskError] = useState('');
 
-    // Delete Confirmation State
-    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
     const editInputRef = useRef(null);
+    const rowRef = useRef(null);
+
+    // Touch Swipe Support (Phone)
+    const { translateX, isSwiping, direction } = useSwipe(rowRef, {
+        onSwipeLeft: () => onDelete(task.id),
+        onSwipeRight: () => onToggle(task.id),
+        enabled: !isEditing,
+    });
 
     // Sync state if external task changes
     useEffect(() => {
@@ -214,24 +222,86 @@ export default function TaskItem({
 
     const showSubtasks = forceExpandedSubtasks || isSubtasksExpanded;
 
+    const handleRowKeyDown = (e) => {
+        // Space, Delete, Enter, and Arrow navigation apply ONLY when the task row itself is focused
+        if (e.target === rowRef.current) {
+            if (e.key === ' ' || e.code === 'Space') {
+                e.preventDefault();
+                onToggle(task.id);
+                return;
+            }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault();
+                onDelete(task.id);
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                onSelect?.(task);
+                return;
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                onFocusNext?.();
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                onFocusPrev?.();
+                return;
+            }
+        }
+    };
+
     return (
-        <>
+        <div className="relative overflow-hidden rounded-2xl select-none">
+            {/* Touch Swipe Action Background Indicator */}
+            {isSwiping && (
+                <div
+                    className={`absolute inset-0 rounded-2xl flex items-center px-6 transition-colors ${
+                        direction === 'right'
+                            ? 'bg-emerald-600 justify-start text-white'
+                            : 'bg-rose-600 justify-end text-white'
+                    }`}
+                >
+                    {direction === 'right' ? (
+                        <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                            <Check className="w-5 h-5 stroke-[2.5]" />
+                            <span>Complete</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                            <span>Delete</span>
+                            <Trash2 className="w-5 h-5 stroke-[2.5]" />
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div
+                ref={rowRef}
+                tabIndex={isRovingActive ? 0 : -1}
+                onKeyDown={handleRowKeyDown}
                 onClick={() => {
                     if (onSelect && !isEditing) {
                         onSelect(task);
                     }
                 }}
-                className={`group rounded-2xl border p-4 transition-all duration-200 cursor-pointer ${
+                style={{
+                    transform: isSwiping ? `translateX(${translateX}px)` : undefined,
+                    transition: isSwiping ? 'none' : 'transform 200ms ease-out',
+                }}
+                className={`group rounded-2xl border p-4 transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     isSelected ? 'ring-2 ring-indigo-500 border-indigo-500 shadow-md' : ''
-                } ${task.completed
+                } ${task.completed ? 'animate-complete-fade ' : ''}${
+                    task.completed
                         ? isDark
                             ? 'bg-zinc-900/40 border-zinc-800 text-zinc-500'
                             : 'bg-zinc-100/60 border-zinc-200 text-zinc-400'
                         : isDark
                             ? 'bg-zinc-900/90 border-zinc-800 hover:border-zinc-700 text-zinc-100 shadow-xs'
                             : 'bg-white border-zinc-200 hover:border-zinc-300 text-zinc-900 shadow-xs'
-                    }`}
+                }`}
             >
                 {isEditing ? (
                     /* Inline Editing Mode */
@@ -401,7 +471,7 @@ export default function TaskItem({
                                             : 'border-zinc-300 hover:border-indigo-500 bg-white'
                                     }`}
                             >
-                                {task.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                {task.completed && <Check className="w-3.5 h-3.5 stroke-[3] animate-check-pop" />}
                             </button>
 
                             {/* Task Content */}
@@ -538,8 +608,11 @@ export default function TaskItem({
                                 <button
                                     type="button"
                                     aria-label={`Delete task "${task.title}"`}
-                                    onClick={() => setIsConfirmOpen(true)}
-                                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(task.id);
+                                    }}
+                                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                                     title="Delete task"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -631,21 +704,6 @@ export default function TaskItem({
                     </div>
                 )}
             </div>
-
-            {/* Confirm Dialog for Deletion */}
-            <ConfirmDialog
-                isOpen={isConfirmOpen}
-                title="Delete Task"
-                message={`Are you sure you want to delete "${task.title}"? This action cannot be undone.`}
-                confirmLabel="Delete"
-                cancelLabel="Cancel"
-                isDestructive={true}
-                onConfirm={() => {
-                    setIsConfirmOpen(false);
-                    onDelete(task.id);
-                }}
-                onCancel={() => setIsConfirmOpen(false)}
-            />
-        </>
+        </div>
     );
 }

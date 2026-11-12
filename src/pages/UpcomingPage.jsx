@@ -7,6 +7,7 @@ import FilterPanel from '../components/tasks/FilterPanel';
 import SortMenu from '../components/tasks/SortMenu';
 import NoResults from '../components/tasks/NoResults';
 import EmptyState from '../components/tasks/EmptyState';
+import TaskListSkeleton from '../components/tasks/TaskListSkeleton';
 import { selectUpcoming } from '../utils/taskSelectors';
 import { filterTasks, sortTasks } from '../utils/taskFilters';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,6 +18,7 @@ export default function UpcomingPage() {
     const {
         tasks,
         categories,
+        loading,
         layoutMode,
         filters,
         searchInput,
@@ -149,7 +151,9 @@ export default function UpcomingPage() {
             </div>
 
             {/* Content Area: Empty vs NoResults vs Grouped List */}
-            {rawGroups.length === 0 ? (
+            {loading ? (
+                <TaskListSkeleton count={4} />
+            ) : rawGroups.length === 0 ? (
                 <EmptyState
                     onFocusForm={onFocusForm}
                     title="No upcoming tasks"

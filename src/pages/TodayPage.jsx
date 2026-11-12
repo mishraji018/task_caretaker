@@ -16,6 +16,7 @@ export default function TodayPage() {
     const {
         tasks,
         categories,
+        loading,
         layoutMode,
         filters,
         searchInput,
@@ -144,7 +145,9 @@ export default function TodayPage() {
             </div>
 
             {/* Task Content: Empty vs NoResults vs TaskList */}
-            {todayTasks.length === 0 ? (
+            {loading ? (
+                <TaskList loading={true} />
+            ) : todayTasks.length === 0 ? (
                 <TaskList
                     tasks={[]}
                     onFocusForm={onFocusForm}

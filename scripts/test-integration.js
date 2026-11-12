@@ -24,12 +24,9 @@ import {
     selectInbox,
     selectToday,
     selectUpcoming,
-    selectCompleted,
-    countByView,
     isSameDay,
 } from '../src/utils/taskSelectors.js';
 import {
-    normalizeText,
     matchesQuery,
     filterTasks,
     sortTasks,
@@ -43,8 +40,6 @@ import {
     subtaskProgress,
 } from '../src/utils/subtasks.js';
 import {
-    isOverdue,
-    formatDue,
     toInputValue,
     fromInputValue,
 } from '../src/utils/dates.js';
@@ -291,11 +286,11 @@ suite('Suite 5: Schema Migration & Backup Idempotence');
     assert(backupFirst.includes('legacy-1'), 'Backup contains original legacy data');
 
     // Second and third getAll() calls MUST NOT rewrite or duplicate the backup
-    const loaded2 = taskService.getAll();
+    taskService.getAll();
     const backupSecond = mockStorage.getItem(TASKS_BACKUP_KEY);
     assert(backupSecond === backupFirst, 'Second getAll() does NOT rewrite backup');
 
-    const loaded3 = taskService.getAll();
+    taskService.getAll();
     const backupThird = mockStorage.getItem(TASKS_BACKUP_KEY);
     assert(backupThird === backupFirst, 'Third getAll() does NOT duplicate or change backup');
 

@@ -37,6 +37,24 @@ const MAX_SUBTASKS = 30;
 let memoryStore = [];
 let corruptedDetected = false;
 let quotaExceededDetected = false;
+const listeners = new Set();
+
+function notifyListeners() {
+    listeners.forEach((fn) => {
+        try {
+            fn();
+        } catch {
+            // Safe listener execution
+        }
+    });
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        try {
+            window.dispatchEvent(new CustomEvent('taskcaretaker:tasks-updated'));
+        } catch {
+            // Ignore event dispatch errors safely
+        }
+    }
+}
 
 function isStorageSupported() {
     if (quotaExceededDetected) {
@@ -112,6 +130,7 @@ function persist(tasks) {
     memoryStore = tasks;
 
     if (!isStorageSupported()) {
+        notifyListeners();
         return;
     }
 
@@ -122,6 +141,8 @@ function persist(tasks) {
         // Storage full (quota exceeded) or blocked
         quotaExceededDetected = true;
     }
+
+    notifyListeners();
 }
 
 // Connect category service to nullify removed categories across tasks
@@ -472,6 +493,57 @@ export const taskService = {
         if (filtered.length !== tasks.length) {
             persist(filtered);
         }
+    },
+
+    /**
+     * Restores an exact task snapshot (same id, createdAt, updatedAt, completedAt, etc.).
+     * If a task with that id already exists, does nothing and returns the existing task.
+     * Never throws on corrupt storage.
+     *
+     * @param {object} task
+     * @returns {object | null}
+     */
+    restore(task) {
+        if (!task || typeof task !== 'object' || !task.id) {
+            return null;
+        }
+
+        try {
+            const tasks = this.getAll();
+            const existing = tasks.find((t) => t.id === task.id);
+            if (existing) {
+                return existing;
+            }
+
+            const restored = normalizeTask(task);
+            restored.id = String(task.id);
+            if (task.createdAt) restored.createdAt = String(task.createdAt);
+            if (task.updatedAt) restored.updatedAt = String(task.updatedAt);
+            if (typeof task.completed === 'boolean') {
+                restored.completed = task.completed;
+                restored.completedAt = task.completedAt ? String(task.completedAt) : null;
+            }
+
+            const newTasks = [restored, ...tasks];
+            persist(newTasks);
+            return restored;
+        } catch {
+            return null;
+        }
+    },
+
+    /**
+     * Subscribes a listener to in-app task data modifications.
+     *
+     * @param {() => void} listener
+     * @returns {() => void} Unsubscribe function
+     */
+    subscribe(listener) {
+        if (typeof listener !== 'function') return () => {};
+        listeners.add(listener);
+        return () => {
+            listeners.delete(listener);
+        };
     },
 };
 

@@ -711,8 +711,8 @@ Documented with strict JSDoc schema definitions:
 | **2** | **Task Details** | Due dates, priorities, categories, subtask checklists | Complete (41/41) |
 | **3** | **Responsive Layout** | Mobile bottom-dock & desktop 3-column split shell | Complete (49/49) |
 | **4** | **Organize & Find** | Lightning search, multi-filters, zero-flash dark mode | Complete (73/73) |
-| **AUDIT** | **Integration Audit (1-4)** | Full cross-feature safety, 1,000 tasks @ 10.8ms, zero regressions | Complete (98/98, 282 total) |
-| **5** | **Polish & Feedback** | 1-click Undo, swipe gestures, hotkeys, command palette | Medium |
+| **AUDIT** | **Integration Audit (1-4)** | Full cross-feature safety, 1,000 tasks @ 10.8ms, zero regressions | Complete (98/98) |
+| **5** | **Polish & Feedback** | 1-click Undo, swipe gestures, hotkeys, command palette | Complete (47/47, 329 total) |
 | **6** | **Smart Engine** | Recurrence math, browser alerts, drag reorder, PWA | Medium-Hard |
 | **7** | **Views & Stats** | Kanban board, calendar matrix, Pomodoro, SVG charts | Medium-Hard |
 | **8** | **AI Copilot** | Natural language scheduling (EN/HI), subtask generator | Advanced |

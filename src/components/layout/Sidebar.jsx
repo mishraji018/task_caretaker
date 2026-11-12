@@ -12,6 +12,8 @@ import {
     Sun,
     LogOut,
     Folder,
+    Search,
+    Keyboard,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -41,6 +43,8 @@ export default function Sidebar({
     isTablet = false,
     onNewTask,
     onManageCategories,
+    onOpenCommandPalette,
+    onOpenShortcuts,
 }) {
     const { isDark } = useTheme();
     const { logout } = useAuth();
@@ -127,8 +131,8 @@ export default function Sidebar({
                 </button>
             </div>
 
-            {/* Quick Action: New Task */}
-            <div className="p-3">
+            {/* Quick Action: New Task & Command Palette */}
+            <div className="p-3 space-y-1.5">
                 <button
                     type="button"
                     onClick={onNewTask}
@@ -140,6 +144,30 @@ export default function Sidebar({
                     <Plus className="w-4 h-4 stroke-[2.5]" />
                     {!isCollapsed && <span>New task</span>}
                 </button>
+
+                {onOpenCommandPalette && (
+                    <button
+                        type="button"
+                        onClick={onOpenCommandPalette}
+                        aria-label="Command palette (Ctrl+K)"
+                        title={isCollapsed ? 'Command Palette (Ctrl+K)' : undefined}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
+                            isDark
+                                ? 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:bg-zinc-850 hover:text-white'
+                                : 'bg-zinc-100/80 border-zinc-200 text-zinc-700 hover:bg-zinc-200/70 hover:text-zinc-900'
+                        } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Search className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                            {!isCollapsed && <span>Search & Menu</span>}
+                        </div>
+                        {!isCollapsed && (
+                            <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-200 dark:bg-zinc-800 text-zinc-500">
+                                ⌘K
+                            </kbd>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Main Views Nav */}
@@ -267,6 +295,20 @@ export default function Sidebar({
                     <LogOut className="w-4 h-4 shrink-0" />
                     {!isCollapsed && <span>Sign Out</span>}
                 </button>
+
+                {onOpenShortcuts && !isCollapsed && (
+                    <button
+                        type="button"
+                        onClick={onOpenShortcuts}
+                        className={`w-full flex items-center justify-center gap-1.5 pt-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                            isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-400 hover:text-zinc-600'
+                        }`}
+                    >
+                        <Keyboard className="w-3.5 h-3.5" />
+                        <span>Keyboard shortcuts</span>
+                        <kbd className="font-mono text-[10px] ml-0.5">?</kbd>
+                    </button>
+                )}
             </div>
         </aside>
     );

@@ -16,6 +16,7 @@ export default function InboxPage() {
     const {
         tasks,
         categories,
+        loading,
         layoutMode,
         filters,
         searchInput,
@@ -136,7 +137,9 @@ export default function InboxPage() {
             </div>
 
             {/* Task Content: Empty vs NoResults vs TaskList */}
-            {inboxTasks.length === 0 ? (
+            {loading ? (
+                <TaskList loading={true} />
+            ) : inboxTasks.length === 0 ? (
                 <TaskList
                     tasks={[]}
                     onFocusForm={onFocusForm}

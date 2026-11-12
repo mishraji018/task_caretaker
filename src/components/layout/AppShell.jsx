@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useSearchParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import BottomDock from './BottomDock';
@@ -10,11 +10,16 @@ import FilterPanel from '../tasks/FilterPanel';
 import SortMenu from '../tasks/SortMenu';
 import ThemeToggle from '../ui/ThemeToggle';
 import CategoryManager from '../categories/CategoryManager';
+import CommandPalette from '../ui/CommandPalette';
+import ShortcutsHelp from '../ui/ShortcutsHelp';
 import { useLayoutMode } from '../../hooks/useLayoutMode';
 import { useTasks } from '../../hooks/useTasks';
 import { useTaskFilters } from '../../hooks/useTaskFilters';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../hooks/useToast';
+import { useHotkeys } from '../../hooks/useHotkeys';
+import { taskService } from '../../services/taskService';
 import { countByView } from '../../utils/taskSelectors';
 import { AlertCircle, AlertTriangle, X, Tag, LogOut, Info } from 'lucide-react';
 
@@ -61,7 +66,10 @@ export default function AppShell() {
     const [isMenuSheetOpen, setIsMenuSheetOpen] = useState(false);
     const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
     const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+    const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
 
+    const { toast } = useToast();
     const taskFormRef = useRef(null);
 
     // Selected task via URL query: ?task=<id>
@@ -85,7 +93,7 @@ export default function AppShell() {
         }
     }, [selectedTaskId, selectedTask, loading, setSearchParams]);
 
-    const handleSelectTask = (task) => {
+    const handleSelectTask = useCallback((task) => {
         setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             if (next.get('task') === task.id) {
@@ -95,15 +103,105 @@ export default function AppShell() {
             }
             return next;
         });
-    };
+    }, [setSearchParams]);
 
-    const handleClearSelection = () => {
+    const handleClearSelection = useCallback(() => {
         setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             next.delete('task');
             return next;
         });
-    };
+    }, [setSearchParams]);
+
+    // Task deletion with instant Undo toast
+    const handleDeleteTask = useCallback(
+        (id) => {
+            const target = tasks.find((t) => t.id === id);
+            if (!target) return;
+
+            const snapshot = JSON.parse(JSON.stringify(target));
+            deleteTask(id);
+
+            if (selectedTaskId === id) {
+                handleClearSelection();
+            }
+
+            toast({
+                message: 'Task deleted',
+                type: 'info',
+                actionLabel: 'Undo',
+                onAction: () => {
+                    taskService.restore(snapshot);
+                },
+            });
+        },
+        [tasks, deleteTask, selectedTaskId, handleClearSelection, toast]
+    );
+
+    // Task completion toggle with instant Undo toast
+    const handleToggleTask = useCallback(
+        (id) => {
+            const target = tasks.find((t) => t.id === id);
+            if (!target) return;
+
+            const prevCompleted = target.completed;
+            const prevCompletedAt = target.completedAt;
+
+            toggleTask(id);
+
+            const isNowCompleted = !prevCompleted;
+            toast({
+                message: isNowCompleted ? 'Task completed' : 'Task marked active',
+                type: 'success',
+                actionLabel: 'Undo',
+                onAction: () => {
+                    taskService.update(id, {
+                        completed: prevCompleted,
+                        completedAt: prevCompletedAt,
+                    });
+                },
+            });
+        },
+        [tasks, toggleTask, toast]
+    );
+
+    // Command palette modal opener (closes lower sheets to prevent stacking)
+    const handleOpenCommandPalette = useCallback(() => {
+        setIsAddSheetOpen(false);
+        setIsMenuSheetOpen(false);
+        setIsFilterSheetOpen(false);
+        setIsCategoryManagerOpen(false);
+        setIsShortcutsHelpOpen(false);
+        setIsCommandPaletteOpen(true);
+    }, []);
+
+    // Global keyboard shortcuts
+    useHotkeys({
+        onNewTask: () => {
+            if (layoutMode === 'laptop') {
+                taskFormRef.current?.focus();
+            } else {
+                setIsAddSheetOpen(true);
+            }
+        },
+        onFocusSearch: () => {
+            const searchInput = document.querySelector('input[placeholder*="Search"]');
+            searchInput?.focus();
+            searchInput?.select();
+        },
+        onOpenCommandPalette: handleOpenCommandPalette,
+        onOpenShortcutsHelp: () => setIsShortcutsHelpOpen(true),
+        onCloseTopModal: () => {
+            if (isCommandPaletteOpen) setIsCommandPaletteOpen(false);
+            else if (isShortcutsHelpOpen) setIsShortcutsHelpOpen(false);
+            else if (isCategoryManagerOpen) setIsCategoryManagerOpen(false);
+            else if (isAddSheetOpen) setIsAddSheetOpen(false);
+            else if (isFilterSheetOpen) setIsFilterSheetOpen(false);
+            else if (isMenuSheetOpen) setIsMenuSheetOpen(false);
+            else if (selectedTaskId) handleClearSelection();
+        },
+        enabled: true,
+    });
 
     // Calculate live counts
     const viewCounts = useMemo(() => countByView(tasks, new Date()), [tasks]);
@@ -112,6 +210,7 @@ export default function AppShell() {
     const outletContext = {
         tasks,
         categories,
+        loading,
         layoutMode,
         filters,
         searchInput,
@@ -122,9 +221,9 @@ export default function AppShell() {
         onOpenFiltersSheet: () => setIsFilterSheetOpen(true),
         selectedTaskId,
         onSelectTask: handleSelectTask,
-        onToggle: toggleTask,
+        onToggle: handleToggleTask,
         onEdit: editTask,
-        onDelete: deleteTask,
+        onDelete: handleDeleteTask,
         onAddSubtask: addSubtask,
         onToggleSubtask: toggleSubtask,
         onRemoveSubtask: removeSubtask,
@@ -146,6 +245,14 @@ export default function AppShell() {
                 isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'
             }`}
         >
+            {/* Skip to Main Content Link for Keyboard Accessibility */}
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-indigo-600 focus:text-white focus:font-bold focus:rounded-xl focus:shadow-xl focus:outline-none focus:ring-2 focus:ring-white"
+            >
+                Skip to main content
+            </a>
+
             <div className="flex-1 flex w-full max-w-[1400px] mx-auto overflow-hidden">
                 {/* 1. Sidebar for Laptop & Tablet */}
                 <Sidebar
@@ -162,11 +269,15 @@ export default function AppShell() {
                         }
                     }}
                     onManageCategories={() => setIsCategoryManagerOpen(true)}
+                    onOpenCommandPalette={handleOpenCommandPalette}
+                    onOpenShortcuts={() => setIsShortcutsHelpOpen(true)}
                 />
 
                 {/* 2. Main Content Area */}
                 <main
-                    className={`flex-1 flex flex-col h-[100dvh] overflow-y-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 ${
+                    id="main-content"
+                    tabIndex="-1"
+                    className={`flex-1 flex flex-col h-[100dvh] overflow-y-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 outline-none ${
                         layoutMode === 'mobile' ? 'pb-24' : 'pb-8'
                     }`}
                 >
@@ -400,6 +511,30 @@ export default function AppShell() {
                 onRenameCategory={renameCategory}
                 onDeleteCategory={deleteCategory}
                 tasks={tasks}
+            />
+
+            {/* 10. Command Palette (Ctrl/Cmd + K) */}
+            <CommandPalette
+                isOpen={isCommandPaletteOpen}
+                onClose={() => setIsCommandPaletteOpen(false)}
+                tasks={tasks}
+                categories={categories}
+                onNewTask={() => {
+                    if (layoutMode === 'laptop') {
+                        taskFormRef.current?.focus();
+                    } else {
+                        setIsAddSheetOpen(true);
+                    }
+                }}
+                onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
+                onOpenShortcuts={() => setIsShortcutsHelpOpen(true)}
+                onClearFilters={clearFilters}
+            />
+
+            {/* 11. Keyboard Shortcuts Reference Dialog */}
+            <ShortcutsHelp
+                isOpen={isShortcutsHelpOpen}
+                onClose={() => setIsShortcutsHelpOpen(false)}
             />
         </div>
     );
