@@ -707,10 +707,11 @@ Documented with strict JSDoc schema definitions:
 
 | Chunk | Phase Title | Primary Value Delivered | Estimated Complexity |
 |:---:|---|---|:---:|
-| **1** | **Core Tasks (CRUD)** | Rock-solid foundation, atomic persistence, tab sync | Complete (v1) |
-| **2** | **Task Details** | Due dates, priorities, categories, subtask checklists | Complete (v2) |
+| **1** | **Core Tasks (CRUD)** | Rock-solid foundation, atomic persistence, tab sync | Complete (21/21) |
+| **2** | **Task Details** | Due dates, priorities, categories, subtask checklists | Complete (41/41) |
 | **3** | **Responsive Layout** | Mobile bottom-dock & desktop 3-column split shell | Complete (49/49) |
 | **4** | **Organize & Find** | Lightning search, multi-filters, zero-flash dark mode | Complete (73/73) |
+| **AUDIT** | **Integration Audit (1-4)** | Full cross-feature safety, 1,000 tasks @ 10.8ms, zero regressions | Complete (98/98, 282 total) |
 | **5** | **Polish & Feedback** | 1-click Undo, swipe gestures, hotkeys, command palette | Medium |
 | **6** | **Smart Engine** | Recurrence math, browser alerts, drag reorder, PWA | Medium-Hard |
 | **7** | **Views & Stats** | Kanban board, calendar matrix, Pomodoro, SVG charts | Medium-Hard |
