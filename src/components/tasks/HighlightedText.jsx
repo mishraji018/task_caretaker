@@ -56,3 +56,4 @@ export default function HighlightedText({ text = '', query = '', className = '' 
 
     return <span className={className}>{renderedNodes}</span>;
 }
+
